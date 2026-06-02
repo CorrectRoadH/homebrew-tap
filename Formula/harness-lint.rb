@@ -1,14 +1,14 @@
 class HarnessLint < Formula
   desc "GritQL rule ecosystem and AI feedback linter"
   homepage "https://github.com/CorrectRoadH/harness-lint"
-  version "0.2.5"
+  version "0.3.0"
 
   if OS.mac? && Hardware::CPU.arm?
-    url "https://github.com/CorrectRoadH/harness-lint/releases/download/v0.2.5/harness-lint-macos-aarch64"
-    sha256 "6ca8b541b2df2b6cc5cb854037c64dec6d63029c7c001dc8e927925ce4b8d04e"
+    url "https://github.com/CorrectRoadH/harness-lint/releases/download/v0.3.0/harness-lint-macos-aarch64"
+    sha256 "15d49e382d0e25fdc6b3313559d305f00d2fe3728a12a04e699141ef060dde1c"
   elsif OS.linux? && Hardware::CPU.intel?
-    url "https://github.com/CorrectRoadH/harness-lint/releases/download/v0.2.5/harness-lint-linux-x86_64"
-    sha256 "b2887431cb3e1ba60b7d5f7f30b17eeac1dc87bfa0a3318a3b56dfb148db54a2"
+    url "https://github.com/CorrectRoadH/harness-lint/releases/download/v0.3.0/harness-lint-linux-x86_64"
+    sha256 "eca3b306dcd9db3d2a4812dc1d835e573a734ad2ab087704af2e5ca57d7b0693"
   else
     odie "harness-lint currently publishes macOS arm64 and Linux x86_64 binaries only"
   end
