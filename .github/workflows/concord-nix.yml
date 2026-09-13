@@ -1,0 +1,23 @@
+name: Concord Nix
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - flake.nix
+      - flake.lock
+      - nix/**
+      - .github/workflows/concord-nix.yml
+jobs:
+  install:
+    strategy:
+      matrix:
+        runner: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - run: nix flake check --print-build-logs
+      - run: nix run .#concord -- --version
+      - run: |
+          nix profile install .#concord
+          "$HOME/.nix-profile/bin/concord" --version
