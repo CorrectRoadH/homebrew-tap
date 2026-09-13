@@ -1,0 +1,15 @@
+name: Concord formula
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - Formula/concord.rb
+      - .github/workflows/concord.yml
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+      - run: brew install CorrectRoadH/tap/concord
+      - run: brew test CorrectRoadH/tap/concord
