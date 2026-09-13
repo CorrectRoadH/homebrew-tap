@@ -29,17 +29,17 @@ The same Concord release is available as a public flake for `x86_64-linux` and
 
 ```sh
 # Run without installing
-nix run github:CorrectRoadH/homebrew-tap#concord -- --help
+nix run 'git+https://github.com/CorrectRoadH/homebrew-tap?ref=main#concord' -- --help
 
 # Install in your user profile
-nix profile install github:CorrectRoadH/homebrew-tap#concord
+nix profile install 'git+https://github.com/CorrectRoadH/homebrew-tap?ref=main#concord'
 concord --version
 ```
 
 For a NixOS flake, add the input and select the package for the host system:
 
 ```nix
-inputs.concord.url = "github:CorrectRoadH/homebrew-tap";
+inputs.concord.url = "git+https://github.com/CorrectRoadH/homebrew-tap?ref=main";
 
 # In the configuration module, with the input passed through specialArgs:
 { pkgs, concord, ... }: {
