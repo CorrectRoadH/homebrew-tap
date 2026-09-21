@@ -137,9 +137,12 @@ jobs:
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          brew install --formula "$PWD/Formula/concord.rb"
+          brew tap-new CorrectRoadH/tap
+          tap_dir="$(brew --repository CorrectRoadH/tap)"
+          cp Formula/concord.rb "$tap_dir/Formula/concord.rb"
+          brew install CorrectRoadH/tap/concord
           test "$(concord --version)" = "concord v$VERSION"
-          brew test concord
+          brew test CorrectRoadH/tap/concord
 
   nix:
     needs: prepare
