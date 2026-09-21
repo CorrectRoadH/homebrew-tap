@@ -1,24 +1,27 @@
 class Concord < Formula
   desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
   homepage "https://github.com/CorrectRoadH/Concord"
-  url "https://github.com/CorrectRoadH/homebrew-tap/releases/download/concord-v0.2.1/concord-sdlc-0.2.1.tgz"
-  version "0.2.1"
-  sha256 "94d5ec0767773759b9fddfc2b7d3ecc46f5d3f6df86036af5f401b7dc3c71c06"
+  url "https://github.com/CorrectRoadH/Concord/releases/download/concord-v0.5.0/concord-sdlc-0.5.0.tgz"
+  version "0.5.0"
+  sha256 "f9722ea548e1a1be041de63cb9849c4bd69b899ba3d7d6de689fa5a9fa4d1778"
 
-  depends_on :linux
+  depends_on "git"
   depends_on "node"
+  depends_on "ripgrep"
+  depends_on "util-linux"
 
   def install
     system "npm", "install", *std_npm_args, "--ignore-scripts"
-    bin.install_symlink libexec.glob("bin/*")
+    (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:$PATH"
   end
 
   test do
+    assert_equal "concord v#{version}", shell_output("#{bin}/concord --version").strip
     consumer = testpath/"consumer"
     consumer.mkpath
     Dir.chdir consumer do
       system "git", "init", "--quiet"
-      system bin/"concord", "init"
+      system bin/"concord", "init", "--docs-only"
       system bin/"concord", "check"
     end
   end
