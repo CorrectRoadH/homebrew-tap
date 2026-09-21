@@ -130,9 +130,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: concord-tap-candidate
-          path: candidate
+          path: ${{ runner.temp }}/concord-tap-candidate
       - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
-      - run: cp candidate/Formula/concord.rb Formula/concord.rb
+      - run: cp "${{ runner.temp }}/concord-tap-candidate/Formula/concord.rb" Formula/concord.rb
       - name: Install and test this checkout's candidate Formula
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
