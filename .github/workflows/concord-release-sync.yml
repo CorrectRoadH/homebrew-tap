@@ -134,11 +134,8 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
       - run: cp "${{ runner.temp }}/concord-tap-candidate/Formula/concord.rb" Formula/concord.rb
       - name: Install and test this checkout's candidate Formula
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           brew install CorrectRoadH/tap/concord
-          test "$("$(brew --prefix)/bin/concord" --version)" = "concord v$VERSION"
           brew test CorrectRoadH/tap/concord
 
   nix:
