@@ -87,7 +87,7 @@ jobs:
 
             def install
               system "npm", "install", *std_npm_args, "--ignore-scripts"
-              bin.write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:\$PATH"
+              (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:\$PATH"
             end
 
             test do
