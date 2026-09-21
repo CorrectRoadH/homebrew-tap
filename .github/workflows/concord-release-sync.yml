@@ -122,11 +122,7 @@ jobs:
   formula:
     needs: prepare
     if: needs.prepare.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [macos-14, macos-15, ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -148,11 +144,7 @@ jobs:
   nix:
     needs: prepare
     if: needs.prepare.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ubuntu-24.04, ubuntu-24.04-arm]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:

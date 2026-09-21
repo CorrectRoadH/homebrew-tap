@@ -18,7 +18,7 @@ Existing NiceEval repositories keep their locked `pnpm run repo` and `pnpm memor
 commands through the Concord repository profile. A different global version is
 rejected; use the repository's pnpm entry to select its exact engine.
 
-Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. After a source tag passes its platform matrix, this tap periodically discovers the release, prepares Formula and Linux Nix metadata, installs the candidate recipe on macOS 14/15 and Ubuntu 24.04 x86_64/arm64, and only then commits and tags the recipe mapping. The scheduled sync can be delayed; maintainers can run `Concord release sync` manually for the same immutable tag.
+Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. This tap periodically discovers the platform-independent npm release, prepares Formula and Linux Nix metadata, validates both recipes on one Ubuntu 24.04 runner each, and only then commits and tags the recipe mapping. The scheduled sync can be delayed; maintainers can run `Concord release sync` manually for the same immutable tag.
 
 ## Nix / NixOS
 
@@ -52,4 +52,4 @@ It supplies Node.js and Git, preserves the published repository engine identity,
 and checks initialization and SQLite cache rebuilding. Project-specific tools
 such as pnpm remain owned by the consumer environment.
 
-Nix remains Linux-only. Release synchronization updates `nix/concord.nix` alongside `Formula/concord.rb`, calculates the new `npmDepsHash`, and validates both supported Linux architectures. Keep `package.json`, `npm-shrinkwrap.json` and repository JS bytes identical to the source release; Nix-specific paths belong in the launcher only.
+Nix remains Linux-only. Release synchronization updates `nix/concord.nix` alongside `Formula/concord.rb`, calculates the new `npmDepsHash`, and validates it on Ubuntu 24.04. Keep `package.json`, `npm-shrinkwrap.json` and repository JS bytes identical to the source release; Nix-specific paths belong in the launcher only.
