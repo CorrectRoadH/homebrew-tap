@@ -1,0 +1,196 @@
+name: Concord release sync
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Optional canonical Concord tag (defaults to the latest release)
+        required: false
+        type: string
+
+concurrency:
+  group: concord-release-sync
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      tag: ${{ steps.identity.outputs.tag }}
+      sha256: ${{ steps.identity.outputs.sha256 }}
+      changed: ${{ steps.identity.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - name: Resolve and verify the public source release
+        id: identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+        run: |
+          tag="$REQUESTED_TAG"
+          if test -z "$tag"; then tag="$(gh release view --repo CorrectRoadH/Concord --json tagName --jq .tagName)"; fi
+          case "$tag" in concord-v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "invalid tag: $tag" >&2; exit 1;; esac
+          version="${tag#concord-v}"
+          current="$(awk '$1 == "version" { gsub(/\"/, "", $2); print $2; exit }' Formula/concord.rb)"
+          if test "$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)" != "$version"; then
+            echo "refusing version rollback from $current to $version" >&2; exit 1
+          fi
+          mkdir -p candidate/Formula candidate/nix asset
+          gh release download "$tag" --repo CorrectRoadH/Concord --pattern "concord-sdlc-$version.tgz" --dir asset
+          test "$(find asset -type f -name '*.tgz' | wc -l)" -eq 1
+          tar -xOf "asset/concord-sdlc-$version.tgz" package/package.json > asset/package.json
+          tar -xOf "asset/concord-sdlc-$version.tgz" package/npm-shrinkwrap.json > asset/npm-shrinkwrap.json
+          test "$(jq -r .version asset/package.json)" = "$version"
+          test "$(jq -r .version asset/npm-shrinkwrap.json)" = "$version"
+          test "$(jq -r ".packages[\"\"].version" asset/npm-shrinkwrap.json)" = "$version"
+          sha256="$(sha256sum "asset/concord-sdlc-$version.tgz" | cut -d' ' -f1)"
+          gh api "repos/CorrectRoadH/Concord/releases/tags/$tag" > asset/release.json
+          published_digest="$(jq -r --arg name "concord-sdlc-$version.tgz" '.assets[] | select(.name == $name) | .digest' asset/release.json)"
+          test "$published_digest" = "sha256:$sha256"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "sha256=$sha256"
+          } >> "$GITHUB_OUTPUT"
+          if test "$current" = "$version"; then
+            current_sha="$(awk '$1 == "sha256" { gsub(/\"/, "", $2); print $2; exit }' Formula/concord.rb)"
+            test "$current_sha" = "$sha256"
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Generate candidate Formula and Nix inputs
+        if: steps.identity.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.identity.outputs.version }}
+          TAG: ${{ steps.identity.outputs.tag }}
+          SHA256: ${{ steps.identity.outputs.sha256 }}
+        run: |
+          cat > candidate/Formula/concord.rb <<RUBY
+          class Concord < Formula
+            desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
+            homepage "https://github.com/CorrectRoadH/Concord"
+            url "https://github.com/CorrectRoadH/Concord/releases/download/$TAG/concord-sdlc-$VERSION.tgz"
+            version "$VERSION"
+            sha256 "$SHA256"
+
+            depends_on "git"
+            depends_on "node"
+            depends_on "util-linux"
+
+            def install
+              system "npm", "install", *std_npm_args, "--ignore-scripts"
+              bin.write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:\$PATH"
+            end
+
+            test do
+              assert_equal "concord v#{version}", shell_output("#{bin}/concord --version").strip
+              consumer = testpath/"consumer"
+              consumer.mkpath
+              Dir.chdir consumer do
+                system "git", "init", "--quiet"
+                system bin/"concord", "init", "--docs-only"
+                system bin/"concord", "check"
+              end
+            end
+          end
+          RUBY
+          cp nix/concord.nix candidate/nix/concord.nix
+          perl -0pi -e 's/version = "[^"]*"/version = "$ENV{VERSION}"/' candidate/nix/concord.nix
+          perl -0pi -e 's#url = "[^"]*"#url = "https://github.com/CorrectRoadH/Concord/releases/download/$ENV{TAG}/concord-sdlc-$ENV{VERSION}.tgz"#' candidate/nix/concord.nix
+          perl -0pi -e 's/sha256 = "[^"]*"/sha256 = "$ENV{SHA256}"/' candidate/nix/concord.nix
+          mkdir asset/package
+          tar -xzf "asset/concord-sdlc-$VERSION.tgz" -C asset/package --strip-components=1
+          npm_deps_hash="$(nix run nixpkgs#prefetch-npm-deps -- asset/package/npm-shrinkwrap.json)"
+          NPM_DEPS_HASH="$npm_deps_hash" perl -0pi -e 's#npmDepsHash = "[^"]*"#npmDepsHash = "$ENV{NPM_DEPS_HASH}"#' candidate/nix/concord.nix
+          ruby -c candidate/Formula/concord.rb
+      - uses: actions/upload-artifact@v4
+        if: steps.identity.outputs.changed == 'true'
+        with:
+          name: concord-tap-candidate
+          path: candidate/
+          if-no-files-found: error
+          retention-days: 3
+
+  formula:
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-14, macos-15, ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: concord-tap-candidate
+          path: candidate
+      - run: cp candidate/Formula/concord.rb Formula/concord.rb
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Install and test this checkout's candidate Formula
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          brew install --formula "$PWD/Formula/concord.rb"
+          test "$(concord --version)" = "concord v$VERSION"
+          brew test concord
+
+  nix:
+    needs: prepare
+    if: needs.prepare.outputs.changed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: concord-tap-candidate
+          path: candidate
+      - run: cp candidate/nix/concord.nix nix/concord.nix
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - run: nix flake check --print-build-logs
+      - run: test "$(nix run .#concord -- --version)" = "concord v${{ needs.prepare.outputs.version }}"
+
+  update:
+    needs: [prepare, formula, nix]
+    if: needs.prepare.outputs.changed == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: concord-tap-candidate
+          path: candidate
+      - name: Record the verified recipe mapping
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SHA256: ${{ needs.prepare.outputs.sha256 }}
+        run: |
+          if git rev-parse --quiet --verify "refs/tags/$TAG" >/dev/null; then echo "recipe tag already exists: $TAG" >&2; exit 1; fi
+          cp candidate/Formula/concord.rb Formula/concord.rb
+          cp candidate/nix/concord.nix nix/concord.nix
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Formula/concord.rb nix/concord.nix
+          git commit -m "Release Concord $VERSION for Homebrew and Nix"
+          git tag -a "$TAG" -m "Concord $VERSION recipe; source asset sha256:$SHA256"
+          git push origin HEAD:main "$TAG"

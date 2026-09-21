@@ -6,7 +6,7 @@ brew install CorrectRoadH/tap/harness-lint
 
 ## Concord
 
-`concord` is a Linux-only local SDLC CLI for contracts, tests, and engineering memory. The formula installs Node.js and the pinned release package.
+`concord` is a local SDLC CLI for contracts, tests, and engineering memory. The formula supports Linux x86_64/aarch64 and Apple Silicon macOS 14/15 on local APFS. It installs Node.js, Git, the pinned release package, and the `util-linux` flock used by Concord's cross-process coordination.
 
 ```sh
 brew install CorrectRoadH/tap/concord
@@ -18,9 +18,7 @@ Existing NiceEval repositories keep their locked `pnpm run repo` and `pnpm memor
 commands through the Concord repository profile. A different global version is
 rejected; use the repository's pnpm entry to select its exact engine.
 
-Release packages are attached to this public tap repository and verified by the
-formula's SHA-256. CI installs the formula and tests initialization and validation
-in a temporary Git repository.
+Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. After a source tag passes its platform matrix, this tap periodically discovers the release, prepares Formula and Linux Nix metadata, installs the candidate recipe on macOS 14/15 and Ubuntu 24.04 x86_64/arm64, and only then commits and tags the recipe mapping. The scheduled sync can be delayed; maintainers can run `Concord release sync` manually for the same immutable tag.
 
 ## Nix / NixOS
 
@@ -54,7 +52,4 @@ It supplies Node.js and Git, preserves the published repository engine identity,
 and checks initialization and SQLite cache rebuilding. Project-specific tools
 such as pnpm remain owned by the consumer environment.
 
-Release maintenance: update `nix/concord.nix` alongside `Formula/concord.rb`,
-calculate the new `npmDepsHash`, then run `nix flake check` and the installation
-workflow. Keep `package.json`, `npm-shrinkwrap.json` and repository JS bytes
-identical to the release; Nix-specific paths belong in the launcher only.
+Nix remains Linux-only. Release synchronization updates `nix/concord.nix` alongside `Formula/concord.rb`, calculates the new `npmDepsHash`, and validates both supported Linux architectures. Keep `package.json`, `npm-shrinkwrap.json` and repository JS bytes identical to the source release; Nix-specific paths belong in the launcher only.
