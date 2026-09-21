@@ -138,7 +138,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           brew install CorrectRoadH/tap/concord
-          test "$(concord --version)" = "concord v$VERSION"
+          test "$("$(brew --prefix concord)/bin/concord" --version)" = "concord v$VERSION"
           brew test CorrectRoadH/tap/concord
 
   nix:
