@@ -82,6 +82,7 @@ jobs:
 
             depends_on "git"
             depends_on "node"
+            depends_on "ripgrep"
             depends_on "util-linux"
 
             def install

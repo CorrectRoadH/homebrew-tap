@@ -1,4 +1,4 @@
-{ lib, buildNpmPackage, fetchurl, nodejs_24, makeWrapper, runCommand, git }:
+{ lib, buildNpmPackage, fetchurl, nodejs_24, makeWrapper, runCommand, git, ripgrep }:
 let
   concord = buildNpmPackage {
     pname = "concord";
@@ -29,7 +29,7 @@ let
       rm "$out/bin/concord"
       makeWrapper ${nodejs_24}/bin/node "$out/bin/concord" \
         --add-flags "$out/lib/node_modules/concord-sdlc/dist/entry.js" \
-        --prefix PATH : ${lib.makeBinPath [ nodejs_24 git ]}
+        --prefix PATH : ${lib.makeBinPath [ nodejs_24 git ripgrep ]}
       cmp package.json "$out/lib/node_modules/concord-sdlc/package.json"
       cmp npm-shrinkwrap.json "$out/lib/node_modules/concord-sdlc/npm-shrinkwrap.json"
       diff -r dist/repository "$out/lib/node_modules/concord-sdlc/dist/repository"

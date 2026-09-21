@@ -6,7 +6,7 @@ brew install CorrectRoadH/tap/harness-lint
 
 ## Concord
 
-`concord` is a local SDLC CLI for contracts, tests, and engineering memory. The formula supports Linux x86_64/aarch64 and Apple Silicon macOS 14/15 on local APFS. It installs Node.js, Git, the pinned release package, and the `util-linux` flock used by Concord's cross-process coordination.
+`concord` is a local SDLC CLI for contracts, tests, and engineering memory. The formula supports Linux x86_64/aarch64 and Apple Silicon macOS 14/15 on local APFS. It installs Node.js, Git, ripgrep, the pinned release package, and the `util-linux` flock used by Concord's cross-process coordination.
 
 ```sh
 brew install CorrectRoadH/tap/concord
