@@ -132,7 +132,7 @@ jobs:
           name: concord-tap-candidate
           path: candidate
       - run: cp candidate/Formula/concord.rb Formula/concord.rb
-      - uses: Homebrew/actions/setup-homebrew@master
+      - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
       - name: Install and test this checkout's candidate Formula
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
