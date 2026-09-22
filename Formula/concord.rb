@@ -1,18 +1,17 @@
 class Concord < Formula
   desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
   homepage "https://github.com/CorrectRoadH/Concord"
-  url "https://github.com/CorrectRoadH/Concord/releases/download/concord-v0.5.0/concord-sdlc-0.5.0.tgz"
-  version "0.5.0"
-  sha256 "f9722ea548e1a1be041de63cb9849c4bd69b899ba3d7d6de689fa5a9fa4d1778"
+  url "https://github.com/CorrectRoadH/Concord/releases/download/concord-v0.6.0/concord-sdlc-0.6.0.tgz"
+  version "0.6.0"
+  sha256 "95c5824f10f0d15bec87e791334e78c1160eaccc2ad180d19563b6517a73a31f"
 
   depends_on "git"
   depends_on "node"
   depends_on "ripgrep"
-  depends_on "util-linux"
 
   def install
     system "npm", "install", *std_npm_args, "--ignore-scripts"
-    (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:$PATH"
+    (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["node"].opt_bin}:$PATH"
   end
 
   test do

@@ -1,15 +1,15 @@
-{ lib, buildNpmPackage, fetchurl, nodejs_24, makeWrapper, runCommand, git, ripgrep, util-linux }:
+{ lib, buildNpmPackage, fetchurl, nodejs_24, makeWrapper, runCommand, git, ripgrep }:
 let
   concord = buildNpmPackage {
     pname = "concord";
-    version = "0.5.0";
+    version = "0.6.0";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/concord-v0.5.0/concord-sdlc-0.5.0.tgz";
-      sha256 = "f9722ea548e1a1be041de63cb9849c4bd69b899ba3d7d6de689fa5a9fa4d1778";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/concord-v0.6.0/concord-sdlc-0.6.0.tgz";
+      sha256 = "95c5824f10f0d15bec87e791334e78c1160eaccc2ad180d19563b6517a73a31f";
     };
     sourceRoot = "package";
     nodejs = nodejs_24;
-    npmDepsHash = "sha256-9KvKOJ36qeS8xJ9i0Nhz/qzmN6WQOYbUFs9JtN8IOEA=";
+    npmDepsHash = "sha256-QdbKFRJheVwk5CkMhMzwExObMdbBssLGgP7+Nal/7Is=";
     dontNpmBuild = true;
     postPatch = ''
       cp npm-shrinkwrap.json npm-shrinkwrap.upstream
@@ -29,13 +29,13 @@ let
       rm "$out/bin/concord"
       makeWrapper ${nodejs_24}/bin/node "$out/bin/concord" \
         --add-flags "$out/lib/node_modules/concord-sdlc/dist/entry.js" \
-        --prefix PATH : ${lib.makeBinPath [ nodejs_24 git ripgrep util-linux ]}
+        --prefix PATH : ${lib.makeBinPath [ nodejs_24 git ripgrep ]}
       cmp package.json "$out/lib/node_modules/concord-sdlc/package.json"
       cmp npm-shrinkwrap.json "$out/lib/node_modules/concord-sdlc/npm-shrinkwrap.json"
       diff -r dist/repository "$out/lib/node_modules/concord-sdlc/dist/repository"
     '';
     passthru.tests.lifecycle = runCommand "concord-lifecycle" {
-      nativeBuildInputs = [ concord git util-linux ];
+      nativeBuildInputs = [ concord git ];
     } ''
       export HOME="$TMPDIR/home"
       mkdir -p "$HOME" consumer
