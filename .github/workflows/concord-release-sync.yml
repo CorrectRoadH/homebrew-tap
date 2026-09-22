@@ -83,11 +83,10 @@ jobs:
             depends_on "git"
             depends_on "node"
             depends_on "ripgrep"
-            depends_on "util-linux"
 
             def install
               system "npm", "install", *std_npm_args, "--ignore-scripts"
-              (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["util-linux"].opt_bin}:\$PATH"
+              (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["node"].opt_bin}:\$PATH"
             end
 
             test do
@@ -103,6 +102,9 @@ jobs:
           end
           RUBY
           cp nix/concord.nix candidate/nix/concord.nix
+          # 0.6.0 coordinates through Node file APIs; the published 0.5 recipe
+          # retains its helper until this candidate passes channel validation.
+          perl -0pi -e 's/, util-linux \}:/ }:/; s/ ripgrep util-linux / ripgrep /g; s/concord git util-linux/concord git/g' candidate/nix/concord.nix
           perl -0pi -e 's/version = "[^"]*"/version = "$ENV{VERSION}"/' candidate/nix/concord.nix
           perl -0pi -e 's#url = "[^"]*"#url = "https://github.com/CorrectRoadH/Concord/releases/download/$ENV{TAG}/concord-sdlc-$ENV{VERSION}.tgz"#' candidate/nix/concord.nix
           perl -0pi -e 's/sha256 = "[^"]*"/sha256 = "$ENV{SHA256}"/' candidate/nix/concord.nix
