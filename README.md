@@ -6,7 +6,7 @@ brew install CorrectRoadH/tap/harness-lint
 
 ## Concord
 
-`concord` is a local SDLC CLI for contracts, tests, and engineering memory. The formula supports Linux x86_64/aarch64 and Apple Silicon macOS 14/15 on local APFS. It installs Node.js, Git, ripgrep, the pinned release package, and the `util-linux` flock used by Concord's cross-process coordination.
+`concord` is a local SDLC CLI for contracts, tests, and engineering memory. The formula supports Linux x86_64/aarch64 and Apple Silicon macOS 14/15 on local APFS. It installs Node.js, Git, ripgrep, and the pinned release package.
 
 ```sh
 brew install CorrectRoadH/tap/concord
@@ -18,9 +18,9 @@ Existing NiceEval repositories keep their locked `pnpm run repo` and `pnpm memor
 commands through the Concord repository profile. A different global version is
 rejected; use the repository's pnpm entry to select its exact engine.
 
-Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. This tap periodically discovers the platform-independent npm release, prepares Formula and Linux Nix metadata, validates both recipes on one Ubuntu 24.04 runner each, and only then commits and tags the recipe mapping. The scheduled sync can be delayed; maintainers can run `Concord release sync` manually for the same immutable tag.
+Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. After publishing, Concord can trigger this tap's `Concord release sync` workflow with the source tag. The tap independently verifies the public asset and its version, prepares Formula and Linux Nix metadata, validates both recipes on Ubuntu 24.04, and only then commits and tags the recipe mapping. Scheduled discovery remains a fallback; maintainers can also run the sync manually for a published tag.
 
-The sync checks for a release every five minutes and accepts `vX.X.X` and `concord-vX.X.X` source tags. After both channel checks pass, it pushes the recipe commit and matching tag together. GitHub may delay scheduled runs; no additional tag or manual recipe edit is required.
+The sync checks for a release every five minutes and accepts `vX.X.X` and `concord-vX.X.X` source tags. After both channel checks pass, it pushes the recipe commit and matching tag together. To enable immediate notification, configure `HOMEBREW_TAP_WORKFLOW_TOKEN` in the Concord repository with a fine-grained token limited to `CorrectRoadH/homebrew-tap` and Actions write permission. The token only starts this tap's existing workflow; a successful notification is not a successful recipe validation. GitHub may delay scheduled runs; no additional tag or manual recipe edit is required.
 
 ## Nix / NixOS
 

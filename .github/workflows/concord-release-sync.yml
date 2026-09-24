@@ -42,6 +42,8 @@ jobs:
           version="${tag#concord-}"
           version="${version#v}"
           current="$(awk '$1 == "version" { gsub(/\"/, "", $2); print $2; exit }' Formula/concord.rb)"
+          nix_current="$(awk '$1 == "version" { gsub(/\"|;/, "", $3); print $3; exit }' nix/concord.nix)"
+          test "$current" = "$nix_current"
           if test "$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)" != "$version"; then
             echo "refusing version rollback from $current to $version" >&2; exit 1
           fi
@@ -65,6 +67,9 @@ jobs:
           if test "$current" = "$version"; then
             current_sha="$(awk '$1 == "sha256" { gsub(/\"/, "", $2); print $2; exit }' Formula/concord.rb)"
             test "$current_sha" = "$sha256"
+            nix_sha="$(awk '$1 == "sha256" { gsub(/\"|;/, "", $3); print $3; exit }' nix/concord.nix)"
+            test "$nix_sha" = "$sha256"
+            git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null
             echo 'changed=false' >> "$GITHUB_OUTPUT"
           else
             echo 'changed=true' >> "$GITHUB_OUTPUT"
@@ -131,6 +136,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    env:
+      HOMEBREW_NO_INSTALL_FROM_API: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -140,8 +147,13 @@ jobs:
       - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
       - run: cp "${{ runner.temp }}/concord-tap-candidate/Formula/concord.rb" Formula/concord.rb
       - name: Install and test this checkout's candidate Formula
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
+          brew info --json=v2 CorrectRoadH/tap/concord | jq -e --arg version "$VERSION" '.formulae[0].versions.stable == $version'
           brew install CorrectRoadH/tap/concord
+          installed_cli="$(brew --prefix CorrectRoadH/tap/concord)/bin/concord"
+          test "$("$installed_cli" --version)" = "concord v$VERSION"
           brew test CorrectRoadH/tap/concord
 
   nix:
