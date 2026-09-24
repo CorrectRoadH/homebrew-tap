@@ -2,7 +2,7 @@ name: Concord release sync
 
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '2-57/5 * * * *'
   workflow_dispatch:
     inputs:
       tag:
@@ -35,8 +35,12 @@ jobs:
         run: |
           tag="$REQUESTED_TAG"
           if test -z "$tag"; then tag="$(gh release view --repo CorrectRoadH/Concord --json tagName --jq .tagName)"; fi
-          case "$tag" in concord-v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "invalid tag: $tag" >&2; exit 1;; esac
-          version="${tag#concord-v}"
+          if [[ ! "$tag" =~ ^(concord-)?v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "invalid tag: $tag" >&2
+            exit 1
+          fi
+          version="${tag#concord-}"
+          version="${version#v}"
           current="$(awk '$1 == "version" { gsub(/\"/, "", $2); print $2; exit }' Formula/concord.rb)"
           if test "$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)" != "$version"; then
             echo "refusing version rollback from $current to $version" >&2; exit 1
@@ -185,4 +189,4 @@ jobs:
           git add Formula/concord.rb nix/concord.nix
           git commit -m "Release Concord $VERSION for Homebrew and Nix"
           git tag -a "$TAG" -m "Concord $VERSION recipe; source asset sha256:$SHA256"
-          git push origin HEAD:main "$TAG"
+          git push --atomic origin HEAD:main "$TAG"
