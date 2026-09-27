@@ -93,6 +93,10 @@ jobs:
             depends_on "node"
             depends_on "ripgrep"
 
+            on_macos do
+              depends_on macos: :sequoia
+            end
+
             preserve_rpath
 
             def install
@@ -151,7 +155,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14]
+        # Homebrew provides bottles on Apple Silicon macOS 15+; macOS 14
+        # falls back to unsupported dependency source builds.
+        os: [ubuntu-24.04, macos-15, macos-26]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
