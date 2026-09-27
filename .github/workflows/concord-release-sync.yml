@@ -17,6 +17,7 @@ concurrency:
 jobs:
   prepare:
     runs-on: ubuntu-24.04
+    timeout-minutes: 8
     permissions:
       contents: read
     outputs:
@@ -26,7 +27,6 @@ jobs:
       changed: ${{ steps.identity.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
       - name: Resolve and verify the public source release
         id: identity
         env:
@@ -48,17 +48,10 @@ jobs:
             echo "refusing version rollback from $current to $version" >&2; exit 1
           fi
           mkdir -p candidate/Formula candidate/nix asset
-          gh release download "$tag" --repo CorrectRoadH/Concord --pattern "concord-sdlc-$version.tgz" --dir asset
-          test "$(find asset -type f -name '*.tgz' | wc -l)" -eq 1
-          tar -xOf "asset/concord-sdlc-$version.tgz" package/package.json > asset/package.json
-          tar -xOf "asset/concord-sdlc-$version.tgz" package/npm-shrinkwrap.json > asset/npm-shrinkwrap.json
-          test "$(jq -r .version asset/package.json)" = "$version"
-          test "$(jq -r .version asset/npm-shrinkwrap.json)" = "$version"
-          test "$(jq -r ".packages[\"\"].version" asset/npm-shrinkwrap.json)" = "$version"
-          sha256="$(sha256sum "asset/concord-sdlc-$version.tgz" | cut -d' ' -f1)"
           gh api "repos/CorrectRoadH/Concord/releases/tags/$tag" > asset/release.json
           published_digest="$(jq -r --arg name "concord-sdlc-$version.tgz" '.assets[] | select(.name == $name) | .digest' asset/release.json)"
-          test "$published_digest" = "sha256:$sha256"
+          [[ "$published_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          sha256="${published_digest#sha256:}"
           {
             echo "version=$version"
             echo "tag=$tag"
@@ -71,9 +64,19 @@ jobs:
             test "$nix_sha" = "$sha256"
             git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null
             echo 'changed=false' >> "$GITHUB_OUTPUT"
-          else
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          gh release download "$tag" --repo CorrectRoadH/Concord --pattern "concord-sdlc-$version.tgz" --dir asset
+          test "$(find asset -type f -name '*.tgz' | wc -l)" -eq 1
+          test "$(sha256sum "asset/concord-sdlc-$version.tgz" | cut -d' ' -f1)" = "$sha256"
+          tar -xOf "asset/concord-sdlc-$version.tgz" package/package.json > asset/package.json
+          tar -xOf "asset/concord-sdlc-$version.tgz" package/npm-shrinkwrap.json > asset/npm-shrinkwrap.json
+          test "$(jq -r .version asset/package.json)" = "$version"
+          test "$(jq -r .version asset/npm-shrinkwrap.json)" = "$version"
+          test "$(jq -r '.packages[""].version' asset/npm-shrinkwrap.json)" = "$version"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+        if: steps.identity.outputs.changed == 'true'
       - name: Generate candidate Formula and Nix inputs
         if: steps.identity.outputs.changed == 'true'
         env:
@@ -151,13 +154,14 @@ jobs:
 
   formula:
     needs: prepare
+    timeout-minutes: 10
     if: needs.prepare.outputs.changed == 'true'
     strategy:
       fail-fast: false
       matrix:
         # Homebrew provides bottles on Apple Silicon macOS 15+; macOS 14
         # falls back to unsupported dependency source builds.
-        os: [ubuntu-24.04, macos-15, macos-26]
+        os: [ubuntu-24.04, macos-15]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
@@ -183,6 +187,7 @@ jobs:
 
   nix:
     needs: prepare
+    timeout-minutes: 10
     if: needs.prepare.outputs.changed == 'true'
     runs-on: ubuntu-24.04
     permissions:
@@ -195,12 +200,20 @@ jobs:
           path: candidate
       - run: cp candidate/nix/concord.nix nix/concord.nix
       - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
-      - run: nix flake check --print-build-logs
+      - run: nix build .#concord --print-build-logs
       - run: test "$(nix run .#concord -- --version)" = "concord v${{ needs.prepare.outputs.version }}"
+      - name: Smoke test the installed Nix package
+        run: |
+          consumer="$(mktemp -d)"
+          git -C "$consumer" init --quiet
+          ./result/bin/concord --root "$consumer" init --docs-only
+          ./result/bin/concord --root "$consumer" --json test list >/dev/null
+          ./result/bin/concord --root "$consumer" --json test list | jq -e '.cache.status == "hit"'
 
   update:
     needs: [prepare, formula, nix]
-    if: needs.prepare.outputs.changed == 'true'
+    timeout-minutes: 3
+    if: always() && needs.prepare.result == 'success' && (needs.prepare.outputs.changed == 'false' || (needs.formula.result == 'success' && needs.nix.result == 'success'))
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -209,10 +222,12 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
+        if: needs.prepare.outputs.changed == 'true'
         with:
           name: concord-tap-candidate
           path: candidate
       - name: Record the verified recipe mapping
+        if: needs.prepare.outputs.changed == 'true'
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
@@ -227,3 +242,14 @@ jobs:
           git commit -m "Release Concord $VERSION for Homebrew and Nix"
           git tag -a "$TAG" -m "Concord $VERSION recipe; source asset sha256:$SHA256"
           git push --atomic origin HEAD:main "$TAG"
+      - name: Publish the channel completion receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA256: ${{ needs.prepare.outputs.sha256 }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 0; fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "Concord $VERSION channels ready" \
+            --notes "Homebrew and Linux Nix map to Concord $VERSION. Source package SHA-256: $SHA256. Source: https://github.com/CorrectRoadH/Concord/releases/tag/$TAG . Upgrade: brew update && brew upgrade CorrectRoadH/tap/concord."
