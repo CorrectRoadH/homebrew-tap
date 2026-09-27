@@ -2,14 +2,14 @@
 let
   concord = buildNpmPackage {
     pname = "concord";
-    version = "0.7.9";
+    version = "0.7.10";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.7.9/concord-sdlc-0.7.9.tgz";
-      sha256 = "b9fd9a4feea0fa7b30f84b73fcfaa0c4804288da09532f2fd77e84132231a7e0";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.7.10/concord-sdlc-0.7.10.tgz";
+      sha256 = "b70f2cd494b9a68023127889b80d664c306f6385e28b82e30d6a54f810ae5064";
     };
     sourceRoot = "package";
     nodejs = nodejs_24;
-    npmDepsHash = "sha256-Rwc4awnVswquyEiVmK+omQFghiRCeSFamX8jJ1zbeDg=";
+    npmDepsHash = "sha256-zwDGRjQOZ182W7rPyw2Onzhv02ouA1gmJnfXXCSm5EY=";
     dontNpmBuild = true;
     postPatch = ''
       cp npm-shrinkwrap.json npm-shrinkwrap.upstream
