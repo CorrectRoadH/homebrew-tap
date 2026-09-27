@@ -97,7 +97,17 @@ jobs:
 
             def install
               system "npm", "install", *std_npm_args, "--ignore-scripts"
+              # Keep verified addons opaque to Homebrew's Mach-O relocation/signing.
+              (libexec/"lib/node_modules/concord-sdlc/dist/native").glob("*/hawdb.node").each do |binary|
+                system "gzip", "-n", binary
+              end
               (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["node"].opt_bin}:\$PATH"
+            end
+
+            def post_install
+              (libexec/"lib/node_modules/concord-sdlc/dist/native").glob("*/hawdb.node.gz").each do |binary|
+                system "gunzip", binary
+              end
             end
 
             test do
