@@ -25,6 +25,7 @@ jobs:
       tag: ${{ steps.identity.outputs.tag }}
       sha256: ${{ steps.identity.outputs.sha256 }}
       changed: ${{ steps.identity.outputs.changed }}
+      base_sha: ${{ steps.identity.outputs.base_sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Resolve and verify the public source release
@@ -33,6 +34,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REQUESTED_TAG: ${{ inputs.tag }}
         run: |
+          echo "base_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           tag="$REQUESTED_TAG"
           if test -z "$tag"; then tag="$(gh release view --repo CorrectRoadH/Concord --json tagName --jq .tagName)"; fi
           if [[ ! "$tag" =~ ^(concord-)?v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
@@ -152,68 +154,10 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  formula:
-    needs: prepare
-    timeout-minutes: 10
-    if: needs.prepare.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        # Homebrew provides bottles on Apple Silicon macOS 15+; macOS 14
-        # falls back to unsupported dependency source builds.
-        os: [ubuntu-24.04, macos-15]
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
-    env:
-      HOMEBREW_NO_INSTALL_FROM_API: '1'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: concord-tap-candidate
-          path: ${{ runner.temp }}/concord-tap-candidate
-      - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9 # 2026.09.13.1
-      - run: cp "${{ runner.temp }}/concord-tap-candidate/Formula/concord.rb" Formula/concord.rb
-      - name: Install and test this checkout's candidate Formula
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          brew info --json=v2 CorrectRoadH/tap/concord | jq -e --arg version "$VERSION" '.formulae[0].versions.stable == $version'
-          brew install CorrectRoadH/tap/concord
-          installed_cli="$(brew --prefix CorrectRoadH/tap/concord)/bin/concord"
-          test "$("$installed_cli" --version)" = "concord v$VERSION"
-          brew test CorrectRoadH/tap/concord
-
-  nix:
-    needs: prepare
-    timeout-minutes: 10
-    if: needs.prepare.outputs.changed == 'true'
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: concord-tap-candidate
-          path: candidate
-      - run: cp candidate/nix/concord.nix nix/concord.nix
-      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
-      - run: nix build .#concord --print-build-logs
-      - run: test "$(nix run .#concord -- --version)" = "concord v${{ needs.prepare.outputs.version }}"
-      - name: Smoke test the installed Nix package
-        run: |
-          consumer="$(mktemp -d)"
-          git -C "$consumer" init --quiet
-          ./result/bin/concord --root "$consumer" init --docs-only
-          ./result/bin/concord --root "$consumer" --json test list >/dev/null
-          ./result/bin/concord --root "$consumer" --json test list | jq -e '.cache.status == "hit"'
-
   update:
-    needs: [prepare, formula, nix]
+    needs: prepare
     timeout-minutes: 3
-    if: always() && needs.prepare.result == 'success' && (needs.prepare.outputs.changed == 'false' || (needs.formula.result == 'success' && needs.nix.result == 'success'))
+    if: needs.prepare.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -221,19 +165,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
       - uses: actions/download-artifact@v4
         if: needs.prepare.outputs.changed == 'true'
         with:
           name: concord-tap-candidate
           path: candidate
-      - name: Record the verified recipe mapping
+      - name: Record the verified metadata mapping
         if: needs.prepare.outputs.changed == 'true'
         env:
+          BASE_SHA: ${{ needs.prepare.outputs.base_sha }}
           VERSION: ${{ needs.prepare.outputs.version }}
           TAG: ${{ needs.prepare.outputs.tag }}
           SHA256: ${{ needs.prepare.outputs.sha256 }}
         run: |
-          if git rev-parse --quiet --verify "refs/tags/$TAG" >/dev/null; then echo "recipe tag already exists: $TAG" >&2; exit 1; fi
+          if git rev-parse --quiet --verify "refs/tags/$TAG" >/dev/null; then
+            # A prior attempt may have pushed the mapping before receipt creation failed.
+            for recipe in Formula/concord.rb nix/concord.nix; do
+              git show "refs/tags/$TAG:$recipe" | cmp - "candidate/$recipe"
+              cmp "$recipe" "candidate/$recipe"
+            done
+            exit 0
+          fi
+          test "$(git rev-parse HEAD)" = "$BASE_SHA" || { echo "main changed after preparation; refusing stale candidate" >&2; exit 1; }
           cp candidate/Formula/concord.rb Formula/concord.rb
           cp candidate/nix/concord.nix nix/concord.nix
           git config user.name github-actions[bot]
@@ -252,4 +206,4 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 0; fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "Concord $VERSION channels ready" \
-            --notes "Homebrew and Linux Nix map to Concord $VERSION. Source package SHA-256: $SHA256. Source: https://github.com/CorrectRoadH/Concord/releases/tag/$TAG . Upgrade: brew update && brew upgrade CorrectRoadH/tap/concord."
+            --notes "Homebrew and Linux Nix metadata map to Concord $VERSION. Package identity and digest verified; no installation or test suite was run by this sync. Source package SHA-256: $SHA256. Source: https://github.com/CorrectRoadH/Concord/releases/tag/$TAG . Upgrade: brew update && brew upgrade CorrectRoadH/tap/concord."

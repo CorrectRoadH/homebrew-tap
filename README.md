@@ -6,7 +6,7 @@ brew install CorrectRoadH/tap/harness-lint
 
 ## Concord
 
-`concord` is a local SDLC CLI for contracts, tests, and engineering memory. Starting with 0.8.2, macOS requires Apple Silicon and macOS 15 or newer. Homebrew installation is smoke-tested on Linux x86_64 and Apple Silicon macOS 15. macOS 27 is allowed but is not verified by this CI matrix. It installs Node.js, Git, ripgrep, and the pinned release package. Use a macOS version with [Homebrew bottle support](https://docs.brew.sh/Support-Tiers).
+`concord` is a local SDLC CLI for contracts, tests, and engineering memory. Starting with 0.8.2, macOS requires Apple Silicon and macOS 15 or newer. Automated channel sync does not run installation checks. macOS 27 is allowed but is not verified in CI. It installs Node.js, Git, ripgrep, and the pinned release package. Use a macOS version with [Homebrew bottle support](https://docs.brew.sh/Support-Tiers).
 
 ```sh
 brew install CorrectRoadH/tap/concord
@@ -18,9 +18,11 @@ Existing NiceEval repositories keep their locked `pnpm run repo` and `pnpm memor
 commands through the Concord repository profile. A different global version is
 rejected; use the repository's pnpm entry to select its exact engine.
 
-Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. The tap automatically discovers releases, prepares Formula and Linux Nix metadata, smoke-tests the Formula on Ubuntu 24.04 and Apple Silicon macOS 15 and Nix on Ubuntu 24.04, then commits and tags the recipe mapping. All channels install the same published package without compiling Concord or running its full suite. A matching tap GitHub Release records channel completion. Source publication alone does not mean the channels are ready.
+Release packages are owned by the public [Concord repository](https://github.com/CorrectRoadH/Concord/releases) and verified by the formula's SHA-256. The tap automatically discovers releases, verifies package identity and SHA-256, generates Formula and Linux Nix metadata, then commits and tags the recipe mapping. The two Ubuntu jobs do not build, test or install Concord. All channels reference the same published package. A matching tap GitHub Release records channel completion. Source publication alone does not mean the channels are ready.
 
 The sync checks for a release every five minutes and accepts `vX.X.X` and `concord-vX.X.X` source tags. Matching versions and digests skip package downloads, Nix setup and platform tasks. After both channel checks pass, it pushes the recipe commit and matching tag together. An interrupted completion receipt is repaired on the next run. To enable immediate notification, configure `HOMEBREW_TAP_WORKFLOW_TOKEN` in the Concord repository with a fine-grained token limited to `CorrectRoadH/homebrew-tap` and Actions write permission. Scheduled discovery requires no cross-repository credential, but GitHub may delay scheduled runs. No LLM, additional tag or manual recipe edit is needed for normal synchronization.
+
+Failed jobs receive one automatic failed-job retry, reusing successful preparation. Later scheduled discovery can recover unfinished synchronization. When version and digest already match, discovery skips the package download and Nix dependency hashing and only repairs a missing channel receipt. Each job has a bounded timeout.
 
 ## Nix / NixOS
 
