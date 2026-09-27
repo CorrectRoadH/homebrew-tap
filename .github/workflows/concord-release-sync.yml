@@ -93,6 +93,8 @@ jobs:
             depends_on "node"
             depends_on "ripgrep"
 
+            preserve_rpath
+
             def install
               system "npm", "install", *std_npm_args, "--ignore-scripts"
               (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["node"].opt_bin}:\$PATH"
@@ -106,6 +108,9 @@ jobs:
                 system "git", "init", "--quiet"
                 system bin/"concord", "init", "--docs-only"
                 system bin/"concord", "check"
+                system bin/"concord", "test", "list", "--json"
+                result = JSON.parse(shell_output("#{bin}/concord test list --json"))
+                assert_equal "hit", result.fetch("cache").fetch("status")
               end
             end
           end
@@ -133,7 +138,11 @@ jobs:
   formula:
     needs: prepare
     if: needs.prepare.outputs.changed == 'true'
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     env:
