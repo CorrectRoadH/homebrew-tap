@@ -106,12 +106,9 @@ jobs:
           name: concord-tap-candidate
           path: ${{ runner.temp }}/concord-tap-candidate
       - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9
-      - env:
-          GIT_AUTHOR_NAME: Concord channel check
-          GIT_AUTHOR_EMAIL: concord-check@example.invalid
-          GIT_COMMITTER_NAME: Concord channel check
-          GIT_COMMITTER_EMAIL: concord-check@example.invalid
-        run: |
+      - run: |
+          git config --global user.name "Concord channel check"
+          git config --global user.email "concord-check@example.invalid"
           brew tap-new local/concord-candidate
           cp "$RUNNER_TEMP/concord-tap-candidate/Formula/concord.rb" "$(brew --repository local/concord-candidate)/Formula/concord.rb"
           brew install --build-from-source local/concord-candidate/concord
