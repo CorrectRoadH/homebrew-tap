@@ -1,38 +1,41 @@
-{ lib, buildNpmPackage, fetchurl, nodejs_24, makeWrapper, runCommand, git, ripgrep }:
+{ lib, stdenv, fetchurl, nodejs_24, pnpm_11, fetchPnpmDeps, pnpmConfigHook, makeWrapper, runCommand, git, ripgrep }:
 let
-  concord = buildNpmPackage {
+  concord = stdenv.mkDerivation (finalAttrs: {
     pname = "concord";
-    version = "0.11.1";
+    version = "0.11.2";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.1/concord-sdlc-0.11.1.tgz";
-      sha256 = "65bf029ff2f91703b3b85ef5f0d9122cce344a149bfe3a87fcf50e6a7a63aa8e";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.2/concord-sdlc-0.11.2.tgz";
+      sha256 = "d2ac2f2598fcf8c38c0b12fc757ff34fa15e9e6f36d553ba038422d05fa8d8bb";
     };
     sourceRoot = "package";
-    nodejs = nodejs_24;
-    npmDepsHash = "sha256-j829+jGzcz5Ly4c6UQ9QdgSP741r57UG8JeQXNT/lNM=";
-    dontNpmBuild = true;
-    postPatch = ''
-      cp npm-shrinkwrap.json npm-shrinkwrap.upstream
-    '';
-    # Nix rewrites dependency URLs for its offline cache during npm ci.
-    # Restore the published identity after dependency installation.
-    preInstall = ''
-      cp npm-shrinkwrap.upstream npm-shrinkwrap.json
-    '';
-    npmFlags = [ "--ignore-scripts" ];
-    npmInstallFlags = [ "--ignore-scripts" ];
-    # Repository identity hashes original JS, package metadata and shrinkwrap.
-    # Only the external launcher may contain Nix-specific paths.
+    pnpmDeps = fetchPnpmDeps {
+      inherit (finalAttrs) pname version src sourceRoot pnpmInstallFlags;
+      pnpm = pnpm_11;
+      fetcherVersion = 4;
+      hash = "sha256-/bJgtSC7HUou7yv6lUWqmucmpY5t2HVopBEBNQJ+fs4=";
+    };
+    # pnpmConfigHook 已固定传入 --ignore-scripts；只保留生产标志，避免 stdenv 将多个选项合为单个参数。
+    pnpmInstallFlags = [ "--prod" ];
+    nativeBuildInputs = [ nodejs_24 pnpm_11 pnpmConfigHook makeWrapper ];
+    dontBuild = true;
+    dontStrip = true;
     dontPatchShebangs = true;
-    nativeBuildInputs = [ makeWrapper ];
-    postInstall = ''
-      rm "$out/bin/concord"
+    preConfigure = ''
+      mkdir ../identity
+      cp package.json pnpm-lock.yaml pnpm-workspace.yaml ../identity/
+    '';
+    installPhase = ''
+      runHook preInstall
+      for name in package.json pnpm-lock.yaml pnpm-workspace.yaml; do
+        cmp "$name" "../identity/$name"
+      done
+      mkdir -p "$out/lib/concord" "$out/bin"
+      cp -a . "$out/lib/concord/"
       makeWrapper ${nodejs_24}/bin/node "$out/bin/concord" \
-        --add-flags "$out/lib/node_modules/concord-sdlc/dist/entry.js" \
+        --add-flags "$out/lib/concord/dist/entry.js" \
         --prefix PATH : ${lib.makeBinPath [ nodejs_24 git ripgrep ]}
-      cmp package.json "$out/lib/node_modules/concord-sdlc/package.json"
-      cmp npm-shrinkwrap.json "$out/lib/node_modules/concord-sdlc/npm-shrinkwrap.json"
-      diff -r dist/repository "$out/lib/node_modules/concord-sdlc/dist/repository"
+      diff -r dist "$out/lib/concord/dist"
+      runHook postInstall
     '';
     passthru.tests.lifecycle = runCommand "concord-lifecycle" {
       nativeBuildInputs = [ concord git ];
@@ -41,17 +44,19 @@ let
       mkdir -p "$HOME" consumer
       cd consumer
       git init --quiet
-      concord init
+      concord init --docs-only
       concord check
-      concord cache rebuild
-      concord check
+      concord cache clear
+      concord test list --json > cold.json
+      concord test list --json > warm.json
+      ${nodejs_24}/bin/node -e 'const fs=require("fs"),assert=require("assert");assert.equal(JSON.parse(fs.readFileSync("cold.json")).cache.status,"miss");assert.equal(JSON.parse(fs.readFileSync("warm.json")).cache.status,"hit")'
       touch "$out"
     '';
     meta = {
       description = "Contracts, test evidence, and engineering memory CLI";
       homepage = "https://github.com/CorrectRoadH/homebrew-tap";
       mainProgram = "concord";
-      platforms = [ "x86_64-linux" "aarch64-linux" ];
+      platforms = [ "x86_64-linux" ];
     };
-  };
+  });
 in concord

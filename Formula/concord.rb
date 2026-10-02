@@ -1,12 +1,13 @@
 class Concord < Formula
   desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
   homepage "https://github.com/CorrectRoadH/Concord"
-  url "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.1/concord-sdlc-0.11.1.tgz"
-  version "0.11.1"
-  sha256 "65bf029ff2f91703b3b85ef5f0d9122cce344a149bfe3a87fcf50e6a7a63aa8e"
+  url "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.2/concord-sdlc-0.11.2.tgz"
+  version "0.11.2"
+  sha256 "d2ac2f2598fcf8c38c0b12fc757ff34fa15e9e6f36d553ba038422d05fa8d8bb"
 
   depends_on "git"
   depends_on "node"
+  depends_on "pnpm" => :build
   depends_on "ripgrep"
 
   on_macos do
@@ -16,16 +17,23 @@ class Concord < Formula
   preserve_rpath
 
   def install
-    system "npm", "install", *std_npm_args, "--ignore-scripts"
+    libexec.install Dir["*", ".*"] - [".", ".."]
+    cd libexec do
+      system Formula["pnpm"].opt_bin/"pnpm", "install", "--prod", "--frozen-lockfile", "--ignore-scripts", "--package-import-method=copy"
+    end
     # Keep verified addons opaque to Homebrew's Mach-O relocation/signing.
-    (libexec/"lib/node_modules/concord-sdlc/dist/native").glob("*/hawdb.node").each do |binary|
+    (libexec/"dist/native").glob("*/hawdb.node").each do |binary|
       system "gzip", "-n", binary
     end
-    (bin/"concord").write_env_script libexec/"bin/concord", PATH: "#{Formula["node"].opt_bin}:$PATH"
+    (bin/"concord").write <<~SH
+      #!/bin/sh
+      export PATH="#{Formula["node"].opt_bin}:$PATH"
+      exec "#{Formula["node"].opt_bin}/node" "#{libexec}/dist/entry.js" "$@"
+    SH
   end
 
   def post_install
-    (libexec/"lib/node_modules/concord-sdlc/dist/native").glob("*/hawdb.node.gz").each do |binary|
+    (libexec/"dist/native").glob("*/hawdb.node.gz").each do |binary|
       system "gunzip", binary
     end
   end
@@ -38,7 +46,9 @@ class Concord < Formula
       system "git", "init", "--quiet"
       system bin/"concord", "init", "--docs-only"
       system bin/"concord", "check"
-      system bin/"concord", "test", "list", "--json"
+      system bin/"concord", "cache", "clear"
+      cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
+      assert_equal "miss", cold.fetch("cache").fetch("status")
       result = JSON.parse(shell_output("#{bin}/concord test list --json"))
       assert_equal "hit", result.fetch("cache").fetch("status")
     end
