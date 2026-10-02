@@ -14,7 +14,8 @@ let
       fetcherVersion = 4;
       hash = "@PNPM_HASH@";
     };
-    pnpmInstallFlags = [ "--prod" "--ignore-scripts" ];
+    # pnpmConfigHook 已固定传入 --ignore-scripts；只保留生产标志，避免 stdenv 将多个选项合为单个参数。
+    pnpmInstallFlags = [ "--prod" ];
     nativeBuildInputs = [ nodejs_24 pnpm_11 pnpmConfigHook makeWrapper ];
     dontBuild = true;
     dontStrip = true;
