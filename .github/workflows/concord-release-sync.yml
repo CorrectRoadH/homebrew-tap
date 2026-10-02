@@ -109,6 +109,8 @@ jobs:
       - run: |
           git config --global user.name "Concord channel check"
           git config --global user.email "concord-check@example.invalid"
+          # macOS runner images can link the obsolete keg into the current OpenSSL path.
+          if brew list --versions openssl@1.1 >/dev/null 2>&1; then brew unlink openssl@1.1; fi
           brew tap-new local/concord-candidate
           cp "$RUNNER_TEMP/concord-tap-candidate/Formula/concord.rb" "$(brew --repository local/concord-candidate)/Formula/concord.rb"
           brew install --build-from-source local/concord-candidate/concord
