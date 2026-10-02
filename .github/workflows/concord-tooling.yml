@@ -1,0 +1,18 @@
+name: Concord channel tooling
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/concord-candidate.py
+      - templates/**
+      - .github/workflows/concord-release-sync.yml
+      - .github/workflows/concord-tooling.yml
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m py_compile scripts/concord-candidate.py
+      - run: ruby -c templates/concord.rb.in
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+      - run: nix-instantiate --parse templates/concord.nix.in > /dev/null
