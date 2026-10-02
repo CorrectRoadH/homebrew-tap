@@ -46,7 +46,9 @@ class Concord < Formula
       system "git", "init", "--quiet"
       system bin/"concord", "init", "--docs-only"
       system bin/"concord", "check"
-      system bin/"concord", "test", "list", "--json"
+      system bin/"concord", "cache", "clear"
+      cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
+      assert_equal "miss", cold.fetch("cache").fetch("status")
       result = JSON.parse(shell_output("#{bin}/concord test list --json"))
       assert_equal "hit", result.fetch("cache").fetch("status")
     end
