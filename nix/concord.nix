@@ -2,17 +2,17 @@
 let
   concord = stdenv.mkDerivation (finalAttrs: {
     pname = "concord";
-    version = "0.11.7";
+    version = "0.11.8";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.7/concord-sdlc-0.11.7.tgz";
-      sha256 = "3b452824ef2ea4acb1bd7c8c6058e8eab8994042690338d9e23b5fa0ccec312c";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.11.8/concord-sdlc-0.11.8.tgz";
+      sha256 = "e2daa3ff6b1ca21c01df7144f0ab9400d2323a7083b3d610aa63a122fdc1918b";
     };
     sourceRoot = "package";
     pnpmDeps = fetchPnpmDeps {
       inherit (finalAttrs) pname version src sourceRoot pnpmInstallFlags;
       pnpm = pnpm_11;
       fetcherVersion = 4;
-      hash = "sha256-FfDbPHrKKJYpoDrOhs7BeAturyH3Y20ZFsllIKW6SD8=";
+      hash = "sha256-B3xVtw3DXPKR2VDlgOPekR2HhegXY/JD6QyFDmV+Icw=";
     };
     # pnpmConfigHook 已固定传入 --ignore-scripts；只保留生产标志，避免 stdenv 将多个选项合为单个参数。
     pnpmInstallFlags = [ "--prod" ];
