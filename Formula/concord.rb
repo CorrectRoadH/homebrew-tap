@@ -48,9 +48,9 @@ class Concord < Formula
       system bin/"concord", "check"
       system bin/"concord", "cache", "clear"
       cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
-      assert_equal "miss", cold.fetch("cache").fetch("status")
+      assert_equal "miss", cold.fetch("cache").fetch("status"), cold.to_json
       result = JSON.parse(shell_output("#{bin}/concord test list --json"))
-      assert_equal "hit", result.fetch("cache").fetch("status")
+      assert_equal "hit", result.fetch("cache").fetch("status"), result.to_json
     end
   end
 end
