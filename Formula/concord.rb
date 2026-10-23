@@ -40,17 +40,22 @@ class Concord < Formula
 
   test do
     assert_equal "concord v#{version}", shell_output("#{bin}/concord --version").strip
-    consumer = testpath/"consumer"
-    consumer.mkpath
-    Dir.chdir consumer do
-      system "git", "init", "--quiet"
-      system bin/"concord", "init", "--docs-only"
-      system bin/"concord", "check"
-      system bin/"concord", "cache", "clear"
-      cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
-      assert_equal "miss", cold.fetch("cache").fetch("status"), cold.to_json
-      result = JSON.parse(shell_output("#{bin}/concord test list --json"))
-      assert_equal "hit", result.fetch("cache").fetch("status"), result.to_json
+    # HawDB syncs database ancestors through the filesystem mount. Linux's
+    # Landlock test sandbox denies reading /; use its writable tmpfs mount
+    # so admission can complete without relaxing sandbox or engine checks.
+    require "tmpdir"
+    test_root = OS.linux? ? "/dev/shm" : testpath.to_s
+    Dir.mktmpdir("concord-consumer-", test_root) do |consumer|
+      Dir.chdir consumer do
+        system "git", "init", "--quiet"
+        system bin/"concord", "init", "--docs-only"
+        system bin/"concord", "check"
+        system bin/"concord", "cache", "clear"
+        cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
+        assert_equal "miss", cold.fetch("cache").fetch("status"), cold.to_json
+        result = JSON.parse(shell_output("#{bin}/concord test list --json"))
+        assert_equal "hit", result.fetch("cache").fetch("status"), result.to_json
+      end
     end
   end
 end

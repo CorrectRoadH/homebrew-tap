@@ -117,15 +117,7 @@ jobs:
           brew tap-new local/concord-candidate
           cp "$RUNNER_TEMP/concord-tap-candidate/Formula/concord.rb" "$(brew --repository local/concord-candidate)/Formula/concord.rb"
           brew install --build-from-source local/concord-candidate/concord
-          if test "$RUNNER_OS" = Linux; then
-            if ! command -v strace >/dev/null; then sudo apt-get install -y strace; fi
-            strace -f -e trace=%file -o "$RUNNER_TEMP/concord-brew-files.log" brew test local/concord-candidate/concord || {
-              grep -E 'EACCES|EPERM' "$RUNNER_TEMP/concord-brew-files.log" | tail -60
-              exit 1
-            }
-          else
-            brew test local/concord-candidate/concord
-          fi
+          brew test local/concord-candidate/concord
 
   nix:
     needs: prepare
