@@ -1,9 +1,9 @@
 class Concord < Formula
   desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
   homepage "https://github.com/CorrectRoadH/Concord"
-  url "https://github.com/CorrectRoadH/Concord/releases/download/v0.13.0/concord-sdlc-0.13.0.tgz"
-  version "0.13.0"
-  sha256 "ed72b5964e71a03e12d349cdedd3ad86efad5c790ed55576d068cf52f48a5959"
+  url "https://github.com/CorrectRoadH/Concord/releases/download/v0.14.1/concord-sdlc-0.14.1.tgz"
+  version "0.14.1"
+  sha256 "818ac89e9026a4e545783301cb0da63bed97fd565a1c3759b072504e3386fdb4"
 
   depends_on "git"
   depends_on "node"
