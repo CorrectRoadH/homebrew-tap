@@ -18,6 +18,9 @@ class Concord < Formula
 
   depends_on "git"
   preserve_rpath
+  # The executable is compressed until post-install, so this link is temporarily
+  # unresolved. Keep Homebrew's cleaner from deleting the installed entry point.
+  skip_clean "bin/concord"
 
   def native_checksums
     JSON.parse(OS.mac? ? '@DARWIN_NATIVE_SHA256@' : '@LINUX_NATIVE_SHA256@')
