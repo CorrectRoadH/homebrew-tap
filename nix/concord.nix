@@ -2,10 +2,10 @@
 let
   concord = stdenv.mkDerivation {
     pname = "concord";
-    version = "0.16.4";
+    version = "0.16.6";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.16.4/concord-0.16.4-linux-x64.tar.gz";
-      sha256 = "a4bf2e14c8bc65727aa28a11c0a682e48feb835124d89a98eae83b8ff8355fd0";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.16.6/concord-0.16.6-linux-x64.tar.gz";
+      sha256 = "c953db3dd9c7a1a8b2f66b7b409d896d9147781b4a948d472045ceb11263b0e8";
     };
     sourceRoot = ".";
     nativeBuildInputs = [ autoPatchelfHook makeWrapper python3 ];
@@ -27,7 +27,7 @@ let
       assert metadata['target'] == 'linux-x64-glibc' and metadata['portable'] and not metadata['testHooks']
       assert metadata['binarySha256'] == hashlib.sha256((root / 'hawdb.node').read_bytes()).hexdigest()
       assert metadata['noticesSha256'] == hashlib.sha256((root / 'THIRD-PARTY-NOTICES.txt').read_bytes()).hexdigest()
-      assert json.loads(Path('app/package.json').read_text())['version'] == '0.16.4'
+      assert json.loads(Path('app/package.json').read_text())['version'] == '0.16.6'
       PY
       mkdir -p "$out/libexec/concord" "$out/bin"
       cp -a bin runtime app licenses "$out/libexec/concord/"
@@ -63,7 +63,7 @@ let
       export XDG_CACHE_HOME="$TMPDIR/cache" XDG_CONFIG_HOME="$TMPDIR/config" XDG_DATA_HOME="$TMPDIR/data"
       mkdir consumer
       cd consumer
-      test "$(concord --version)" = "concord v0.16.4"
+      test "$(concord --version)" = "concord v0.16.6"
       git init --quiet
       concord init --docs-only
       concord check
