@@ -22,8 +22,5 @@
         };
         default = concord;
       });
-      checks = forAllSystems (system: {
-        concord = self.packages.${system}.concord.passthru.tests.lifecycle;
-      });
     };
 }

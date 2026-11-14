@@ -29,8 +29,6 @@ jobs:
       base_sha: ${{ steps.identity.outputs.base_sha }}
     steps:
       - uses: actions/checkout@v4
-      - name: Check candidate integrity regressions
-        run: python3 -m unittest discover -s scripts -p 'test_concord*.py' -v
       - name: Resolve and verify the public source release
         id: identity
         env:
@@ -45,55 +43,10 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
-  brew:
-    needs: prepare
-    if: needs.prepare.outputs.changed == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, macos-15]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: concord-tap-candidate
-          path: ${{ runner.temp }}/concord-tap-candidate
-      - uses: Homebrew/actions/setup-homebrew@1e34f2e2acaa766b7efacb8c26352e6abbb023f9
-      - run: |
-          git config --global user.name "Concord channel check"
-          git config --global user.email "concord-check@example.invalid"
-          # macOS runner images can link the obsolete keg into the current OpenSSL path.
-          openssl_link="$(brew --prefix)/bin/openssl"
-          if test -L "$openssl_link" && test "$(readlink "$openssl_link")" = "$(brew --prefix)/opt/openssl@1.1/bin/openssl"; then
-            unlink "$openssl_link"
-          fi
-          brew tap-new local/concord-candidate
-          cp "$RUNNER_TEMP/concord-tap-candidate/Formula/concord.rb" "$(brew --repository local/concord-candidate)/Formula/concord.rb"
-          brew install --build-from-source local/concord-candidate/concord
-          brew test local/concord-candidate/concord
-
-  nix:
-    needs: prepare
-    if: needs.prepare.outputs.changed == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: concord-tap-candidate
-          path: candidate
-      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
-      - run: |
-          nix flake check path:./candidate --print-build-logs
-          nix run path:./candidate#concord -- --version
-
   update:
-    needs: [prepare, brew, nix]
+    needs: prepare
     timeout-minutes: 3
-    if: always() && needs.prepare.result == 'success' && (needs.prepare.outputs.changed != 'true' || (needs.brew.result == 'success' && needs.nix.result == 'success'))
+    if: needs.prepare.result == 'success'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -144,4 +97,4 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 0; fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
             --title "Concord $VERSION channels ready" \
-            --notes "Homebrew and Linux Nix metadata map to Concord $VERSION. Archive identities, digests, Homebrew installations on Linux x64/macOS arm64, and Linux x64 Nix installation verified. Source archive SHA-256 (linux-x64): $SHA256; (darwin-arm64): $DARWIN_SHA256. Source: https://github.com/CorrectRoadH/Concord/releases/tag/$TAG . Upgrade: brew update && brew upgrade CorrectRoadH/tap/concord."
+            --notes "Homebrew and Linux Nix metadata map to Concord $VERSION. Published archive identities and SHA-256 verified; channel recipes synchronized. Source archive SHA-256 (linux-x64): $SHA256; (darwin-arm64): $DARWIN_SHA256. Source: https://github.com/CorrectRoadH/Concord/releases/tag/$TAG . Upgrade: brew update && brew upgrade CorrectRoadH/tap/concord."

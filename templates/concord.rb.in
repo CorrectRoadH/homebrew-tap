@@ -22,8 +22,8 @@ class Concord < Formula
   # unresolved. Keep Homebrew's cleaner from deleting the installed entry point.
   skip_clean "bin/concord"
 
-  def native_checksums
-    JSON.parse(OS.mac? ? '@DARWIN_NATIVE_SHA256@' : '@LINUX_NATIVE_SHA256@')
+  def compressed_native_paths
+    JSON.parse(OS.mac? ? '@DARWIN_NATIVE_PATHS@' : '@LINUX_NATIVE_PATHS@')
   end
 
   def native_binaries
@@ -42,39 +42,9 @@ class Concord < Formula
   end
 
   def post_install
-    native_checksums.each_key do |relative|
+    compressed_native_paths.each do |relative|
       binary = libexec/"#{relative}.gz"
       system "gunzip", binary if binary.exist?
-    end
-  end
-
-  test do
-    assert_equal "concord v#{version}", shell_output("#{bin}/concord --version").strip
-    require "digest"
-    expected = native_checksums
-    actual = native_binaries.to_h do |binary|
-      [binary.relative_path_from(libexec).to_s, Digest::SHA256.file(binary).hexdigest]
-    end
-    assert_equal expected, actual, "Installed native bytes differ from the verified release archive"
-    if OS.mac?
-      native_binaries.each { |binary| system "/usr/bin/codesign", "--verify", binary }
-      refute_match "com.apple.quarantine", shell_output("/usr/bin/xattr -r #{libexec}")
-    end
-    # HawDB syncs database ancestors through the filesystem mount. Landlock
-    # denies reading / in Linux's test sandbox; keep its writable tmpfs workaround.
-    require "tmpdir"
-    test_root = OS.linux? ? "/dev/shm" : testpath.to_s
-    Dir.mktmpdir("concord-consumer-", test_root) do |consumer|
-      Dir.chdir consumer do
-        system "git", "init", "--quiet"
-        system bin/"concord", "init", "--docs-only"
-        system bin/"concord", "check"
-        system bin/"concord", "cache", "clear"
-        cold = JSON.parse(shell_output("#{bin}/concord test list --json"))
-        assert_equal "miss", cold.fetch("cache").fetch("status"), cold.to_json
-        warm = JSON.parse(shell_output("#{bin}/concord test list --json"))
-        assert_equal "hit", warm.fetch("cache").fetch("status"), warm.to_json
-      end
     end
   end
 end

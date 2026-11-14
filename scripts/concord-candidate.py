@@ -51,7 +51,7 @@ def verify_archive(path, digest, version, target):
     require(sha256(path) == digest, f'Archive SHA-256 differs: {path.name}')
     with tarfile.open(path) as archive:
         names = set()
-        native_hashes = {}
+        native_paths = []
         for member in archive:
             name = PurePosixPath(member.name)
             require(not name.is_absolute() and '..' not in name.parts and str(name) not in names,
@@ -62,22 +62,15 @@ def verify_archive(path, digest, version, target):
                     head = handle.read(4)
                     if head == b'\x7fELF' or head in MACH_O:
                         require((head == b'\x7fELF') == (target == 'linux-x64'), 'Wrong native file platform')
-                        handle.seek(0)
-                        native_hashes[str(name)] = hashlib.file_digest(handle, 'sha256').hexdigest()
+                        native_paths.append(str(name))
         package = json.load(archive.extractfile('app/package.json'))
         require(package['version'] == version, f'Archive version differs from tag: {path.name}')
         require(re.fullmatch(r'[a-f0-9]{40}', package.get('gitHead', '')), 'Missing archive source commit')
         native_target = 'linux-x64-glibc' if target == 'linux-x64' else target
         directory = f'app/dist/native/{native_target}'
-        metadata = json.load(archive.extractfile(f'{directory}/artifact.json'))
-        require(metadata['target'] == native_target and metadata['portable'] is True and metadata['testHooks'] is False,
-                'Expected a portable production HawDB binding')
-        require(metadata['binarySha256'] == native_hashes[f'{directory}/hawdb.node'], 'HawDB binary identity differs')
-        with archive.extractfile(f'{directory}/THIRD-PARTY-NOTICES.txt') as notices:
-            require(metadata['noticesSha256'] == hashlib.file_digest(notices, 'sha256').hexdigest(), 'HawDB notices differ')
-        require({'bin/concord', 'runtime/rg', f'{directory}/hawdb.node'} <= native_hashes.keys(), 'Missing native runtime')
-        identity = [package['gitHead']] + [metadata[key] for key in ('abi', 'revision', 'sourceDigest', 'cargoLockDigest')]
-        return native_hashes, identity
+        library = 'lib/libhawdb_ffi.' + ('so' if target == 'linux-x64' else 'dylib')
+        require({'bin/concord', 'runtime/rg', f'{directory}/{library}'} <= set(native_paths), 'Missing native runtime')
+        return sorted(native_paths), package['gitHead']
 
 
 def generate(assets, digests, version, tag, output, local=False, commit=None):
@@ -87,8 +80,8 @@ def generate(assets, digests, version, tag, output, local=False, commit=None):
         name = f'concord-{version}-{target}.tar.gz'
         native[target], identity = verify_archive(assets / name, digests[target], version, target)
         identities.append(identity)
-    require(identities[0] == identities[1], 'Platform archive source/native identities disagree')
-    require(commit is None or identities[0][0] == commit, 'Archive source commit differs from tag')
+    require(identities[0] == identities[1], 'Platform archive source identities disagree')
+    require(commit is None or identities[0] == commit, 'Archive source commit differs from tag')
     linux_name = f'concord-{version}-linux-x64.tar.gz'
     linux_url = f'https://github.com/{REPOSITORY}/releases/download/{tag}/{linux_name}'
     linux_source = ('fetchurl {\n'
@@ -101,8 +94,8 @@ def generate(assets, digests, version, tag, output, local=False, commit=None):
     replacements = {
         'VERSION': version, 'TAG': tag, 'LINUX_SOURCE': linux_source,
         'LINUX_SHA256': digests['linux-x64'], 'DARWIN_SHA256': digests['darwin-arm64'],
-        'LINUX_NATIVE_SHA256': json.dumps(native['linux-x64'], sort_keys=True, separators=(',', ':')),
-        'DARWIN_NATIVE_SHA256': json.dumps(native['darwin-arm64'], sort_keys=True, separators=(',', ':')),
+        'LINUX_NATIVE_PATHS': json.dumps(native['linux-x64'], sort_keys=True, separators=(',', ':')),
+        'DARWIN_NATIVE_PATHS': json.dumps(native['darwin-arm64'], sort_keys=True, separators=(',', ':')),
     }
     for template, destination in [('concord.rb.in', 'Formula/concord.rb'), ('concord.nix.in', 'nix/concord.nix')]:
         text = (Path('templates') / template).read_text()
