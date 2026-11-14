@@ -2,10 +2,10 @@
 let
   concord = stdenv.mkDerivation {
     pname = "concord";
-    version = "0.17.8";
+    version = "0.17.9";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.8/concord-0.17.8-linux-x64.tar.gz";
-      sha256 = "b3730aef456ca5da611f25d4b569db32085d655c5c0abf7d69b32e503bfb1180";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.9/concord-0.17.9-linux-x64.tar.gz";
+      sha256 = "c23300c187fd303f43e288ffb35e9726e25d36ec7a558acc2d1af26d392054c1";
     };
     sourceRoot = ".";
     nativeBuildInputs = [ autoPatchelfHook makeWrapper python3 ];
@@ -27,7 +27,7 @@ let
       assert metadata['format'] == 'concord.native-artifact/v2' and metadata['target'] == 'linux-x64-glibc'
       assert metadata['upstreamManifestSha256'] == hashlib.sha256((root / 'manifest.json').read_bytes()).hexdigest()
       assert metadata['binarySha256'] == hashlib.sha256((root / 'lib/libhawdb_ffi.so').read_bytes()).hexdigest()
-      assert json.loads(Path('app/package.json').read_text())['version'] == '0.17.8'
+      assert json.loads(Path('app/package.json').read_text())['version'] == '0.17.9'
       PY
       mkdir -p "$out/libexec/concord" "$out/bin"
       cp -a bin runtime app licenses "$out/libexec/concord/"
