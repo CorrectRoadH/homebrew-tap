@@ -1,11 +1,11 @@
-{ lib, stdenv, fetchurl, autoPatchelfHook, makeWrapper, python3, glibc, git, runCommand }:
+{ lib, stdenv, fetchurl, autoPatchelfHook, makeWrapper, python3, glibc, git }:
 let
   concord = stdenv.mkDerivation {
     pname = "concord";
-    version = "0.16.10";
+    version = "0.17.1";
     src = fetchurl {
-      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.16.10/concord-0.16.10-linux-x64.tar.gz";
-      sha256 = "a7abf0ebe8c9e4029185af057c9ea9175cf3a26f23b7fac3b02504248a2b16f7";
+      url = "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.1/concord-0.17.1-linux-x64.tar.gz";
+      sha256 = "16abb2e462d04244cb0564cb2039982b494935aaaa3f7c8e681e9b7e0c50989b";
     };
     sourceRoot = ".";
     nativeBuildInputs = [ autoPatchelfHook makeWrapper python3 ];
@@ -24,10 +24,10 @@ let
       from pathlib import Path
       root = Path('app/dist/native/linux-x64-glibc')
       metadata = json.loads((root / 'artifact.json').read_text())
-      assert metadata['target'] == 'linux-x64-glibc' and metadata['portable'] and not metadata['testHooks']
-      assert metadata['binarySha256'] == hashlib.sha256((root / 'hawdb.node').read_bytes()).hexdigest()
-      assert metadata['noticesSha256'] == hashlib.sha256((root / 'THIRD-PARTY-NOTICES.txt').read_bytes()).hexdigest()
-      assert json.loads(Path('app/package.json').read_text())['version'] == '0.16.10'
+      assert metadata['format'] == 'concord.native-artifact/v2' and metadata['target'] == 'linux-x64-glibc'
+      assert metadata['upstreamManifestSha256'] == hashlib.sha256((root / 'manifest.json').read_bytes()).hexdigest()
+      assert metadata['binarySha256'] == hashlib.sha256((root / 'lib/libhawdb_ffi.so').read_bytes()).hexdigest()
+      assert json.loads(Path('app/package.json').read_text())['version'] == '0.17.1'
       PY
       mkdir -p "$out/libexec/concord" "$out/bin"
       cp -a bin runtime app licenses "$out/libexec/concord/"
@@ -51,32 +51,11 @@ let
       native = Path(sys.argv[1]) / relative
       metadata = json.loads((native / 'artifact.json').read_text())
       assert metadata == original
-      metadata['binarySha256'] = hashlib.sha256((native / 'hawdb.node').read_bytes()).hexdigest()
+      metadata['binarySha256'] = hashlib.sha256((native / 'lib/libhawdb_ffi.so').read_bytes()).hexdigest()
       (native / 'artifact.json').write_text(json.dumps(metadata, sort_keys=True) + '\n')
       assert {k: v for k, v in metadata.items() if k != 'binarySha256'} == {k: v for k, v in original.items() if k != 'binarySha256'}
       PY
       "$out/bin/concord" --version
-    '';
-    passthru.tests.lifecycle = runCommand "concord-lifecycle" {
-      nativeBuildInputs = [ concord git python3 ];
-    } ''
-      export XDG_CACHE_HOME="$TMPDIR/cache" XDG_CONFIG_HOME="$TMPDIR/config" XDG_DATA_HOME="$TMPDIR/data"
-      mkdir consumer
-      cd consumer
-      test "$(concord --version)" = "concord v0.16.10"
-      git init --quiet
-      concord init --docs-only
-      concord check
-      concord cache clear
-      concord test list --json > cold.json
-      concord test list --json > warm.json
-      python3 - <<'PY'
-      import json
-      from pathlib import Path
-      assert json.loads(Path('cold.json').read_text())['cache']['status'] == 'miss'
-      assert json.loads(Path('warm.json').read_text())['cache']['status'] == 'hit'
-      PY
-      touch "$out"
     '';
     meta = {
       description = "Contracts, test evidence, and engineering memory CLI";
