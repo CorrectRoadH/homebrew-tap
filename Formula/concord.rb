@@ -1,19 +1,19 @@
 class Concord < Formula
   desc "Local SDLC CLI for contracts, test evidence, and engineering memory"
   homepage "https://github.com/CorrectRoadH/Concord"
-  version "0.17.10"
+  version "0.17.14"
 
   on_macos do
     depends_on arch: :arm64
     depends_on macos: :sequoia
-    url "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.10/concord-0.17.10-darwin-arm64.tar.gz"
-    sha256 "83ae3b5bafa4209404c0f3b6e452152aa45fbcaf1e152bdde5359a19893bc82e"
+    url "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.14/concord-0.17.14-darwin-arm64.tar.gz"
+    sha256 "a726b8a70df37c3410a9a1fd38fee0e9a1cb9f6cc2e6cf1db92d398512e05dba"
   end
 
   on_linux do
     depends_on arch: :x86_64
-    url "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.10/concord-0.17.10-linux-x64.tar.gz"
-    sha256 "f00c128a13f43d148f014e1a3650e074453d3cc66e8c18fd0df46a949e7aa6b3"
+    url "https://github.com/CorrectRoadH/Concord/releases/download/v0.17.14/concord-0.17.14-linux-x64.tar.gz"
+    sha256 "e401259801cc6ebb48ead5895e4aa9967f81983a3c1a0b3de04d5cb8d91e3c56"
   end
 
   depends_on "git"
