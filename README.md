@@ -4,6 +4,16 @@
 brew install CorrectRoadH/tap/harness-lint
 ```
 
+## Herdr (Intel Mac)
+
+This cask installs the Intel (x86_64) build of the Herdr desktop app.
+
+```sh
+brew install --cask CorrectRoadH/tap/herdr-app
+```
+
+The Intel build is ad hoc signed and unnotarized. On Apple Silicon, use the [official Herdr installer](https://herdr.dev/).
+
 ## Concord
 
 `concord` is a local SDLC CLI for contracts, tests, and engineering memory. macOS requires Apple Silicon and macOS 15 or newer. It installs Git and the platform release archive, which carries the Bun-compiled `concord` executable, ripgrep, the official HawDB C ABI library and its own TypeScript and esbuild; no Node.js, Bun or pnpm is needed. Use a macOS version with [Homebrew bottle support](https://docs.brew.sh/Support-Tiers).
